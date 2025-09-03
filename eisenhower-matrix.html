@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eisenhower Matrix</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f0f2f5;
+            min-height: 100vh;
+        }
+
+        .gradient-do {
+            background-image: linear-gradient(135deg, #FF6B6B 0%, #F8A5C2 100%);
+        }
+        .gradient-schedule {
+            background-image: linear-gradient(135deg, #6BE7FF 0%, #A5C2FF 100%);
+        }
+        .gradient-delegate {
+            background-image: linear-gradient(135deg, #A5C2FF 0%, #6BE7FF 100%);
+        }
+        .gradient-delete {
+            background-image: linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%);
+        }
+
+        .task-card {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.3s ease;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .task-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .quadrant {
+            min-height: 20rem;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .input-glow {
+            transition: box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+        .input-glow:focus {
+            outline: none;
+            border-color: #8B5CF6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.4);
+        }
+
+        .button-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            padding: 2.5rem;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            position: relative;
+            max-height: 80vh;
+            overflow-y: auto;
+            transform: scale(0.9);
+            opacity: 0;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease-out;
+        }
+        
+        .modal-open .modal-content {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .close-button:hover, .close-button:focus {
+            color: #333;
+        }
+        
+        .modal-task {
+            padding: 0.75rem 1rem;
+            background-color: #f3f4f6;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #4b5563;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col min-h-screen p-4">
+
+    <!-- Confetti Container -->
+    <div id="confetti-container" class="confetti-container"></div>
+
+    <!-- Header -->
+    <header class="p-6 text-center">
+        <h1 class="text-5xl font-extrabold text-gray-900 drop-shadow-lg">The Eisenhower Matrix 🚀</h1>
+        <p class="mt-2 text-xl text-gray-600">Prioritize like a pro. Focus on what truly matters.</p>
+        <button id="view-all-btn" class="mt-4 bg-purple-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:bg-purple-600 transition-colors button-pulse">
+            View All Tasks
+        </button>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch p-4">
+
+        <!-- Quadrant 1: Urgent & Important (Do) -->
+        <div id="quadrant-do" class="quadrant flex flex-col">
+            <h2 class="gradient-do text-white p-6 text-center font-bold text-3xl">Urgent & Important</h2>
+            <div class="bg-gray-50 p-6 flex-1 overflow-y-auto space-y-4">
+                <div id="do-tasks" class="space-y-4"></div>
+                <div class="mt-4 flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="do-input" placeholder="Add a new task..." class="flex-1 p-3 rounded-xl border-2 border-red-300 focus:ring-4 focus:ring-red-200 focus:border-red-500 transition-colors input-glow">
+                    <button id="add-do" class="bg-red-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:bg-red-600 transition-colors button-pulse">Add</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quadrant 2: Important & Not Urgent (Schedule) -->
+        <div id="quadrant-schedule" class="quadrant flex flex-col">
+            <h2 class="gradient-schedule text-white p-6 text-center font-bold text-3xl">Important & Not Urgent</h2>
+            <div class="bg-gray-50 p-6 flex-1 overflow-y-auto space-y-4">
+                <div id="schedule-tasks" class="space-y-4"></div>
+                <div class="mt-4 flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="schedule-input" placeholder="Add a new task..." class="flex-1 p-3 rounded-xl border-2 border-blue-300 focus:ring-4 focus:ring-blue-200 focus:border-blue-500 transition-colors input-glow">
+                    <button id="add-schedule" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:bg-blue-600 transition-colors button-pulse">Add</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quadrant 3: Urgent & Not Important (Delegate) -->
+        <div id="quadrant-delegate" class="quadrant flex flex-col">
+            <h2 class="gradient-delegate text-white p-6 text-center font-bold text-3xl">Urgent & Not Important</h2>
+            <div class="bg-gray-50 p-6 flex-1 overflow-y-auto space-y-4">
+                <div id="delegate-tasks" class="space-y-4"></div>
+                <div class="mt-4 flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="delegate-input" placeholder="Add a new task..." class="flex-1 p-3 rounded-xl border-2 border-purple-300 focus:ring-4 focus:ring-purple-200 focus:border-purple-500 transition-colors input-glow">
+                    <button id="add-delegate" class="bg-purple-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:bg-purple-600 transition-colors button-pulse">Add</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quadrant 4: Not Urgent & Not Important (Delete) -->
+        <div id="quadrant-delete" class="quadrant flex flex-col">
+            <h2 class="gradient-delete text-white p-6 text-center font-bold text-3xl">Not Urgent & Not Important</h2>
+            <div class="bg-gray-50 p-6 flex-1 overflow-y-auto space-y-4">
+                <div id="delete-tasks" class="space-y-4"></div>
+                <div class="mt-4 flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="delete-input" placeholder="Add a new task..." class="flex-1 p-3 rounded-xl border-2 border-gray-300 focus:ring-4 focus:ring-gray-200 focus:border-gray-500 transition-colors input-glow">
+                    <button id="add-delete" class="bg-gray-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:bg-gray-600 transition-colors button-pulse">Add</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal to show all tasks -->
+    <div id="allTasksModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeModalBtn">&times;</span>
+            <h2 class="text-3xl font-extrabold text-gray-900 mb-4">All My Tasks</h2>
+            <div id="modal-task-list" class="flex flex-col space-y-2"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const quadrants = {
+                do: document.getElementById('do-tasks'),
+                schedule: document.getElementById('schedule-tasks'),
+                delegate: document.getElementById('delegate-tasks'),
+                delete: document.getElementById('delete-tasks')
+            };
+
+            const inputs = {
+                do: document.getElementById('do-input'),
+                schedule: document.getElementById('schedule-input'),
+                delegate: document.getElementById('delegate-input'),
+                delete: document.getElementById('delete-input')
+            };
+
+            const buttons = {
+                do: document.getElementById('add-do'),
+                schedule: document.getElementById('add-schedule'),
+                delegate: document.getElementById('add-delegate'),
+                delete: document.getElementById('add-delete')
+            };
+
+            const allTasksBtn = document.getElementById('view-all-btn');
+            const modal = document.getElementById('allTasksModal');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const modalTaskList = document.getElementById('modal-task-list');
+
+            // Confetti animation helper function
+            function showConfetti(targetElement) {
+                const confettiContainer = document.getElementById('confetti-container');
+                const rect = targetElement.getBoundingClientRect();
+
+                for (let i = 0; i < 50; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti absolute rounded-full';
+                    const size = Math.random() * 8 + 4; // size 4px to 12px
+                    confetti.style.width = `${size}px`;
+                    confetti.style.height = `${size}px`;
+                    confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                    confetti.style.left = `${rect.left + rect.width / 2 + (Math.random() - 0.5) * 50}px`;
+                    confetti.style.top = `${rect.top + rect.height / 2 + (Math.random() - 0.5) * 50}px`;
+                    confetti.style.opacity = '0';
+                    confetti.style.transform = 'translate(0, 0) scale(1) rotate(0deg)';
+                    confetti.style.transition = 'transform 0.8s ease-out, opacity 0.8s ease-out';
+                    
+                    confettiContainer.appendChild(confetti);
+
+                    // Animate the confetti
+                    setTimeout(() => {
+                        confetti.style.opacity = '1';
+                        const angle = Math.random() * 2 * Math.PI;
+                        const distance = Math.random() * 100 + 50;
+                        const x = distance * Math.cos(angle);
+                        const y = distance * Math.sin(angle) - 50;
+                        confetti.style.transform = `translate(${x}px, ${y}px) scale(0) rotate(${Math.random() * 360}deg)`;
+                    }, 10);
+
+                    // Remove confetti after animation
+                    setTimeout(() => confetti.remove(), 800);
+                }
+            }
+
+            // Load tasks from localStorage
+            function loadTasks() {
+                for (const quadrant in quadrants) {
+                    const tasks = JSON.parse(localStorage.getItem(quadrant)) || [];
+                    tasks.forEach(taskText => addTaskToDOM(quadrant, taskText));
+                }
+            }
+
+            // Save tasks to localStorage
+            function saveTasks() {
+                for (const quadrant in quadrants) {
+                    const tasks = Array.from(quadrants[quadrant].children).map(li => li.querySelector('span').textContent);
+                    localStorage.setItem(quadrant, JSON.stringify(tasks));
+                }
+            }
+
+            // Create a new task element and add it to the DOM
+            function addTaskToDOM(quadrant, text) {
+                const li = document.createElement('li');
+                li.className = 'task-card p-4 rounded-xl flex items-center justify-between text-gray-800 text-sm font-medium shadow-md';
+                li.innerHTML = `
+                    <span class="flex-1 break-words">${text}</span>
+                    <button onclick="deleteTask(this, '${quadrant}')" class="ml-2 bg-gray-200 text-gray-600 hover:text-white hover:bg-red-500 rounded-full w-8 h-8 flex items-center justify-center transition-all duration-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.728-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                `;
+                quadrants[quadrant].appendChild(li);
+            }
+
+            // Add new task from input field
+            for (const quadrant in buttons) {
+                buttons[quadrant].addEventListener('click', () => {
+                    const text = inputs[quadrant].value.trim();
+                    if (text) {
+                        addTaskToDOM(quadrant, text);
+                        inputs[quadrant].value = '';
+                        saveTasks();
+                    }
+                });
+
+                // Allow adding tasks with the Enter key
+                inputs[quadrant].addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        buttons[quadrant].click();
+                    }
+                });
+            }
+
+            // Delete task from DOM and localStorage
+            window.deleteTask = (button, quadrant) => {
+                const li = button.closest('li');
+                li.style.transform = 'scale(0.9) translateX(100%)';
+                li.style.opacity = '0';
+                
+                showConfetti(li);
+
+                setTimeout(() => {
+                    li.remove();
+                    saveTasks();
+                }, 300); 
+            };
+            
+            // Show all tasks in a modal
+            function showAllTasks() {
+                modalTaskList.innerHTML = '';
+                const quadrantOrder = ['do', 'schedule', 'delegate', 'delete'];
+
+                quadrantOrder.forEach(quadrantKey => {
+                    const quadrantTitle = document.getElementById(`quadrant-${quadrantKey}`).querySelector('h2').textContent;
+                    const tasks = JSON.parse(localStorage.getItem(quadrantKey)) || [];
+
+                    if (tasks.length > 0) {
+                        const titleEl = document.createElement('h3');
+                        titleEl.className = 'text-xl font-bold mt-4 mb-2 first:mt-0';
+                        titleEl.textContent = quadrantTitle;
+                        modalTaskList.appendChild(titleEl);
+
+                        tasks.forEach(taskText => {
+                            const taskEl = document.createElement('div');
+                            taskEl.className = 'modal-task';
+                            taskEl.textContent = taskText;
+                            modalTaskList.appendChild(taskEl);
+                        });
+                    }
+                });
+                
+                modal.style.display = 'flex';
+                setTimeout(() => modal.classList.add('modal-open'), 10);
+            }
+
+            allTasksBtn.addEventListener('click', showAllTasks);
+            closeModalBtn.addEventListener('click', () => {
+                modal.classList.remove('modal-open');
+                setTimeout(() => modal.style.display = 'none', 300);
+            });
+            window.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    modal.classList.remove('modal-open');
+                    setTimeout(() => modal.style.display = 'none', 300);
+                }
+            });
+
+            loadTasks();
+        });
+    </script>
+</body>
+</html>
